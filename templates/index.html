@@ -9,6 +9,7 @@
         <p><b>Click the button to generate the PDF from Tableau:</b></p>
         <button id="executeButton" class="styled-button">Execute</button>
         <p id="result"></p>
+        <p id="statusDisplay"></p>
     </div>
     <script>
         document.getElementById("executeButton").addEventListener("click", function() {
@@ -24,6 +25,20 @@
                     button.classList.remove("loading");
                     //button.disabled = false;
                 });
+
+            // Poll for status updates
+            var statusDisplay = document.getElementById("statusDisplay");
+            var getStatus = async () => {
+                var response = await fetch('/get_status');
+                var status = await response.text();
+                statusDisplay.textContent = `Status: ${status}`;
+                if (document.getElementById("result").textContent !== 'PDF created') {
+                    setTimeout(getStatus, 100); // Poll every 0,1 second
+                }
+                document.getElementById("result").textContent = ""
+            };
+
+            getStatus();
         });
     </script>
 </body>
