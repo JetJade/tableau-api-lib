@@ -7,28 +7,24 @@ from urllib import parse
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
 
-#Erstellung der Klasse für den pdf Gen
+# Creation of Extension class
 class TableauExtension:
 
-    #VAriablen um später den Status ans html zu schicken
+    # Variables for loading bar
     count_views = 0
     counter = 0
     status_percent = 0
 
-    #Init - bei jeder Erstellung der Klasse wird eine Connection zum Tableau Server automatisch aufgebaut
+    # init - automatically created while calling this class
     def __init__(self):
         self.status = self.status_percent
         self.connection = self.tableau_login()
 
-    #Einfach eine Funktion um den Status rauszugeben
+    # gives back status for loading bar
     def check_status(self):
         return self.status_percent
-    
-    #Testfunktion
-    def change_status(self):
-        self.status_percent = 7
 
-    #Konfig zum anmelden. Kann auch in eine Datei gepackt werden und später als Secret behandelt werden
+    # current config - can be changed in the future
     @staticmethod
     def tableau_login():
         tableau_server_config = {
@@ -45,7 +41,7 @@ class TableauExtension:
         conn.sign_in()
         return conn
 
-    #Gibt die Workbook ID unseres gewünschten Workbooks zurück
+    # giving back workbook id
     def get_workbook_id(self):
         WORKBOOK_NAME = '2023_OPV_TechStack_V1_Base'
         workbooks = self.connection.query_workbooks_for_site().json()['workbooks']['workbook']
@@ -54,7 +50,7 @@ class TableauExtension:
                 return workbook['id']
         return workbooks.pop()['id']
 
-    #Nutzt die Workbook ID um eine Liste aller worksheets in diesem Workbook rauszugeben - ist gefiltert auf OPV
+    # using workbook id and gives back a list of all views - filtered to OPV
     def query_viewnames_for_workbook(self):
         conn = self.connection
         view_list = []
@@ -70,7 +66,7 @@ class TableauExtension:
         return df
 
 
-    #Funktion um die pdf abzuspeichern
+    # function for saving the pdf file
     def save_as_pdf (self,pdf_merger):
         pdfPath = "APQR.pdf"
         
@@ -78,13 +74,13 @@ class TableauExtension:
         pdf_merger.write(pdfOutputFile)
         pdfOutputFile.close()
 
-    #Funktion um die einzelnen PDFs zu generieren und das abspeichern aufzurufen
+    # creating the seperate pdf files and merge them
     def create_pdf (self):
         FILE_PREFIX = 'bnt_'
-        views = self.query_viewnames_for_workbook()#.head(5)
+        views = self.query_viewnames_for_workbook()
         pdf_list = []
 
-        # csv Generierung, da sie für die pdf benötigt wird
+        # csv generation for pdf creation - extension must know some values
         file_content = self.create_csv().content
         file_path = 'APQR.csv'
         with open(file_path, 'wb') as file:
@@ -168,7 +164,7 @@ class TableauExtension:
                         elif first_page_done == 1 and ind == 0:
                             pass
                         else:
-                            #Filter Variablen, welche später noch manipuliert werden müssen
+                            # Filter Variablen, welche später noch manipuliert werden müssen
                             parameter_filter_name = parse.quote('Result Name')
                             parameter_filter_value = parse.quote(str(result_name))
 
@@ -186,7 +182,6 @@ class TableauExtension:
                                 'sample_stage_filter': f'vf_{sample_stage_filter_name}={sample_stage_filter_value}',
                                 'material_number_filter': f'vf_{material_number_name}={material_number_filter_value}'
                             }
-                            #print(views['view_id'][ind])
                             self.counter = self.counter + 1
                             
                             view_string = views['view_id'][ind]
@@ -205,7 +200,6 @@ class TableauExtension:
         for pdf in pdf_list:
             merger.append(pdf)
         self.save_as_pdf(merger)
-        #merger.write('result.pdf')
         merger.close()
 
         # adding page numbers, removing old file and renaming
@@ -222,7 +216,7 @@ class TableauExtension:
 
         return 'PDF created'
     
-    #Nutzt die Workbook ID um Hilfssheet zu bekommen.
+    # using the workbook id to get the helping view
     def create_csv (self):
         conn = self.connection
         view_list = []
@@ -235,13 +229,12 @@ class TableauExtension:
         df_complete = pd.DataFrame(view_list,columns = ['view_id','view_name'])
         #Filterschritt
         df = df_complete[df_complete['view_name'].str.contains("Helper")]
-        view_id = str(df.head(1)['view_id'][10])
+        view_id = str(df.head(1)['view_id'][df.index.values.astype(int)[0]])
         print(view_id)
         response = conn.query_view_data(view_id)
-        #self.save_as_csv(response)
         return response
     
-    #Funktion um die csv abzuspeichern
+    # function for saving the csv file
     def save_as_csv (self,response):
         csvPath = "APQR.csv"
         if csvPath: #If the user didn't close the dialog window
@@ -289,47 +282,4 @@ class TableauExtension:
                     with open(newpath, "wb") as f:
                         writer.write(f)
             os.remove(tmp)
-
-#add_page_numgers("input.pdf", "output.pdf")
-
-#conn.sign_out()
-#print(get_workbook_id(tableau_login()))
-#create_pdf()
-#jo = TableauExtension()
-#jo.save_as_csv(jo.create_csv())
-
-# # Zusammenfassung aller notwendigen Spalten
-# column_names = ['Material Number','Sample Stage','Result Name']
-# # csv zu Dataframe
-# df = pd.read_csv('APQR.csv',delimiter=';')[column_names]
-# # Sortierung nach den jeweiligen Spalten
-# df_sorted = df.sort_values(by=["Material Number", "Sample Stage", "Result Name"])
-# # Distinct, um nur relevante Infos zu behalten
-# df_unique = df_sorted.drop_duplicates(subset=["Material Number", "Sample Stage", "Result Name"])
-# # Filter based on multiple conditions (AND)
-# filtered_df = df_unique[(df_unique["Material Number"] == 20000019) & (df_unique["Sample Stage"] == "DP_B-IPC6")]
-# # Beispiel FUnktion
-# def process_combination(material_number, sample_stage, result_name):
-#     # Your processing logic here
-#     print(f"Material Number: {material_number}, Sample Stage: {sample_stage}, Result Name: {result_name}")
-# # For schleifen
-# for material_number in df_unique["Material Number"].unique():
-#     material_group = df_unique[df_unique["Material Number"] == material_number]
-    
-#     for sample_stage in material_group["Sample Stage"].unique():
-#         stage_group = material_group[material_group["Sample Stage"] == sample_stage]
-        
-#         for result_name in stage_group["Result Name"].unique():
-#             process_combination(str(material_number).split('.', 1)[0], sample_stage, result_name)
-
-
-#print(filtered_df.to_string())
-
-#filtered_df = df_unique[df_unique["Material Number"] == 20000019]
-#df_2 = df.groupby(['Material Number','Sample Stage','Result Name'])
-#df_2 = pd.unique(df['Material Number','Sample Stage','Result Name'])
-#print(df_2)
-# print(jo.check_status())
-#jo.create_pdf()
-
 
