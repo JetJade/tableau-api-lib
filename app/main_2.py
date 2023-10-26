@@ -2,8 +2,10 @@ import os
 import shutil
 import pandas as pd
 from tableau_api_lib import TableauServerConnection
-from pypdf import PdfMerger
+from PyPDF2 import PdfMerger, PdfReader, PdfWriter
 from urllib import parse
+from reportlab.lib.units import mm
+from reportlab.pdfgen import canvas
 
 #Erstellung der Klasse für den pdf Gen
 class TableauExtension:
@@ -204,9 +206,14 @@ class TableauExtension:
             merger.append(pdf)
         self.save_as_pdf(merger)
         #merger.write('result.pdf')
+        merger.close()
+
+        # adding page numbers, removing old file and renaming
+        self.add_page_numgers("APQR.pdf", "APQR_numbered.pdf")
+        os.remove("APQR.pdf")
+        os.rename("APQR_numbered.pdf", "APQR.pdf")
 
         #clean up
-        merger.close()
         conn.sign_out()
         shutil.rmtree('./temp/')
         self.count_views = 0
@@ -241,6 +248,49 @@ class TableauExtension:
             with open(csvPath, 'wb') as csv_file:
                 csv_file.write(response.content)
                 csv_file.close()
+
+    # Functions for pagenumbers
+    def create_page_pdf(self, num, tmp):
+        c = canvas.Canvas(tmp)
+        for i in range(1, num + 1):
+            # 210 x 297 -> A4
+            # First Value Point from left, second point from bottom
+            c.drawString((297 // 2) * mm, (4) * mm, str(i))
+            c.showPage()
+        c.save()
+
+    def add_page_numgers(self, pdf_path, newpath):
+        """
+        Add page numbers to a pdf, save the result as a new pdf
+        @param pdf_path: path to pdf
+        """
+        tmp = "__tmp.pdf"
+
+        writer = PdfWriter()
+        with open(pdf_path, "rb") as f:
+            reader = PdfReader(f)
+            n = len(reader.pages)
+
+            # create new PDF with page numbers
+            self.create_page_pdf(n, tmp)
+
+            with open(tmp, "rb") as ftmp:
+                number_pdf = PdfReader(ftmp)
+                # iterarte pages
+                for p in range(n):
+                    page = reader.pages[p]
+                    number_layer = number_pdf.pages[p]
+                    # merge number page with actual page
+                    page.merge_page(number_layer)
+                    writer.add_page(page)
+
+                # write result
+                if len(writer.pages) > 0:
+                    with open(newpath, "wb") as f:
+                        writer.write(f)
+            os.remove(tmp)
+
+#add_page_numgers("input.pdf", "output.pdf")
 
 #conn.sign_out()
 #print(get_workbook_id(tableau_login()))
