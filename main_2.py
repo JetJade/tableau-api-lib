@@ -61,7 +61,7 @@ class TableauExtension:
             view_list.append((view['id'],view['name']))
         # take only the necessary dashboards
         df_complete = pd.DataFrame(view_list,columns = ['view_id','view_name'])
-        #Filterschritt
+        # filtering
         df = df_complete[df_complete['view_name'].str.contains("OPV")]
         return df
 
@@ -87,13 +87,13 @@ class TableauExtension:
                 file.write(file_content)
                 file.close()
 
-        # Zusammenfassung aller notwendigen Spalten
+        # summary of all necessary columns
         column_names = ['Material Number','Sample Stage','Result Name']
-        # csv zu Dataframe
+        # csv to dataframe
         df = pd.read_csv('APQR.csv',delimiter=';')[column_names]
-        # Sortierung nach den jeweiligen Spalten
+        # sorting the columns
         df_sorted = df.sort_values(by=["Material Number", "Sample Stage", "Result Name"])
-        # Distinct, um nur relevante Infos zu behalten
+        # distinct to get only the necessary data
         df_unique = df_sorted.drop_duplicates(subset=["Material Number", "Sample Stage", "Result Name"])
 
         #TEST
@@ -110,15 +110,14 @@ class TableauExtension:
         print(self.count_views)
 
         conn = self.connection
-        #print(type(view_string))
 
             
-        # For schleifen
+        # for loops -> uncommented can be used for the whole package -> now only filtered
         #for material_number in df_unique["Material Number"].unique():
         for material_number in df_filtered["Material Number"].unique():
             material_group = df_filtered[df_filtered["Material Number"] == material_number]
             #material_group = df_unique[df_unique["Material Number"] == material_number]
-            # Variable für die erste Seite
+            # variable for the first page
             first_page_done = 0
                 
             for sample_stage in material_group["Sample Stage"].unique():
@@ -129,7 +128,7 @@ class TableauExtension:
                 for result_name in stage_group["Result Name"].unique():                        
                     for ind in views.index:
                         if first_page_done == 0 and ind == 0:
-                            #Filter Variablen, welche später noch manipuliert werden müssen
+                            # filtering variables
                             parameter_filter_name = parse.quote('Result Name')
                             parameter_filter_value = parse.quote('')
 
@@ -138,8 +137,7 @@ class TableauExtension:
 
                             material_number_name = parse.quote('Material Number')
                             material_number_filter_value = parse.quote(str(material_number).split('.', 1)[0])
-                            # Müssen immer wieder aktualisiert werden und durchiteriert werden
-                            # Können später nach Sample Stage filtern um Größe zu verkleinern
+                            # must be iterated through
                             pdf_params = {
                                 'type': 'type=A4',
                                 'orientation': 'orientation=Landscape',
@@ -147,7 +145,6 @@ class TableauExtension:
                                 'sample_stage_filter': f'vf_{sample_stage_filter_name}={sample_stage_filter_value}',
                                 'material_number_filter': f'vf_{material_number_name}={material_number_filter_value}'
                             }
-                            #print(views['view_id'][ind])
                             self.counter = self.counter + 1
                             
                             view_string = views['view_id'][ind]
@@ -164,7 +161,7 @@ class TableauExtension:
                         elif first_page_done == 1 and ind == 0:
                             pass
                         else:
-                            # Filter Variablen, welche später noch manipuliert werden müssen
+                            # filtering variables
                             parameter_filter_name = parse.quote('Result Name')
                             parameter_filter_value = parse.quote(str(result_name))
 
@@ -173,8 +170,7 @@ class TableauExtension:
 
                             material_number_name = parse.quote('Material Number')
                             material_number_filter_value = parse.quote(str(material_number).split('.', 1)[0])
-                            # Müssen immer wieder aktualisiert werden und durchiteriert werden
-                            # Können später nach Sample Stage filtern um Größe zu verkleinern
+                            # must be iterated through
                             pdf_params = {
                                 'type': 'type=A4',
                                 'orientation': 'orientation=Landscape',
